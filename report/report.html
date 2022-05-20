@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Test Report</title>
+    <link href="assets/style.css" rel="stylesheet" type="text/css"/></head>
+  <body onLoad="init()">
+    <script>/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+
+function toArray(iter) {
+    if (iter === null) {
+        return null;
+    }
+    return Array.prototype.slice.call(iter);
+}
+
+function find(selector, elem) { // eslint-disable-line no-redeclare
+    if (!elem) {
+        elem = document;
+    }
+    return elem.querySelector(selector);
+}
+
+function findAll(selector, elem) {
+    if (!elem) {
+        elem = document;
+    }
+    return toArray(elem.querySelectorAll(selector));
+}
+
+function sortColumn(elem) {
+    toggleSortStates(elem);
+    const colIndex = toArray(elem.parentNode.childNodes).indexOf(elem);
+    let key;
+    if (elem.classList.contains('result')) {
+        key = keyResult;
+    } else if (elem.classList.contains('links')) {
+        key = keyLink;
+    } else {
+        key = keyAlpha;
+    }
+    sortTable(elem, key(colIndex));
+}
+
+function showAllExtras() { // eslint-disable-line no-unused-vars
+    findAll('.col-result').forEach(showExtras);
+}
+
+function hideAllExtras() { // eslint-disable-line no-unused-vars
+    findAll('.col-result').forEach(hideExtras);
+}
+
+function showExtras(colresultElem) {
+    const extras = colresultElem.parentNode.nextElementSibling;
+    const expandcollapse = colresultElem.firstElementChild;
+    extras.classList.remove('collapsed');
+    expandcollapse.classList.remove('expander');
+    expandcollapse.classList.add('collapser');
+}
+
+function hideExtras(colresultElem) {
+    const extras = colresultElem.parentNode.nextElementSibling;
+    const expandcollapse = colresultElem.firstElementChild;
+    extras.classList.add('collapsed');
+    expandcollapse.classList.remove('collapser');
+    expandcollapse.classList.add('expander');
+}
+
+function showFilters() {
+    const filterItems = document.getElementsByClassName('filter');
+    for (let i = 0; i < filterItems.length; i++)
+        filterItems[i].hidden = false;
+}
+
+function addCollapse() {
+    // Add links for show/hide all
+    const resulttable = find('table#results-table');
+    const showhideall = document.createElement('p');
+    showhideall.innerHTML = '<a href="javascript:showAllExtras()">Show all details</a> / ' +
+                            '<a href="javascript:hideAllExtras()">Hide all details</a>';
+    resulttable.parentElement.insertBefore(showhideall, resulttable);
+
+    // Add show/hide link to each result
+    findAll('.col-result').forEach(function(elem) {
+        const collapsed = getQueryParameter('collapsed') || 'Passed';
+        const extras = elem.parentNode.nextElementSibling;
+        const expandcollapse = document.createElement('span');
+        if (extras.classList.contains('collapsed')) {
+            expandcollapse.classList.add('expander');
+        } else if (collapsed.includes(elem.innerHTML)) {
+            extras.classList.add('collapsed');
+            expandcollapse.classList.add('expander');
+        } else {
+            expandcollapse.classList.add('collapser');
+        }
+        elem.appendChild(expandcollapse);
+
+        elem.addEventListener('click', function(event) {
+            if (event.currentTarget.parentNode.nextElementSibling.classList.contains('collapsed')) {
+                showExtras(event.currentTarget);
+            } else {
+                hideExtras(event.currentTarget);
+            }
+        });
+    });
+}
+
+function getQueryParameter(name) {
+    const match = RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+    return match && decodeURIComponent(match[1].replace(/\+/g, ' '));
+}
+
+function init () { // eslint-disable-line no-unused-vars
+    resetSortHeaders();
+
+    addCollapse();
+
+    showFilters();
+
+    sortColumn(find('.initial-sort'));
+
+    findAll('.sortable').forEach(function(elem) {
+        elem.addEventListener('click',
+            function() {
+                sortColumn(elem);
+            }, false);
+    });
+}
+
+function sortTable(clicked, keyFunc) {
+    const rows = findAll('.results-table-row');
+    const reversed = !clicked.classList.contains('asc');
+    const sortedRows = sort(rows, keyFunc, reversed);
+    /* Whole table is removed here because browsers acts much slower
+     * when appending existing elements.
+     */
+    const thead = document.getElementById('results-table-head');
+    document.getElementById('results-table').remove();
+    const parent = document.createElement('table');
+    parent.id = 'results-table';
+    parent.appendChild(thead);
+    sortedRows.forEach(function(elem) {
+        parent.appendChild(elem);
+    });
+    document.getElementsByTagName('BODY')[0].appendChild(parent);
+}
+
+function sort(items, keyFunc, reversed) {
+    const sortArray = items.map(function(item, i) {
+        return [keyFunc(item), i];
+    });
+
+    sortArray.sort(function(a, b) {
+        const keyA = a[0];
+        const keyB = b[0];
+
+        if (keyA == keyB) return 0;
+
+        if (reversed) {
+            return keyA < keyB ? 1 : -1;
+        } else {
+            return keyA > keyB ? 1 : -1;
+        }
+    });
+
+    return sortArray.map(function(item) {
+        const index = item[1];
+        return items[index];
+    });
+}
+
+function keyAlpha(colIndex) {
+    return function(elem) {
+        return elem.childNodes[1].childNodes[colIndex].firstChild.data.toLowerCase();
+    };
+}
+
+function keyLink(colIndex) {
+    return function(elem) {
+        const dataCell = elem.childNodes[1].childNodes[colIndex].firstChild;
+        return dataCell == null ? '' : dataCell.innerText.toLowerCase();
+    };
+}
+
+function keyResult(colIndex) {
+    return function(elem) {
+        const strings = ['Error', 'Failed', 'Rerun', 'XFailed', 'XPassed',
+            'Skipped', 'Passed'];
+        return strings.indexOf(elem.childNodes[1].childNodes[colIndex].firstChild.data);
+    };
+}
+
+function resetSortHeaders() {
+    findAll('.sort-icon').forEach(function(elem) {
+        elem.parentNode.removeChild(elem);
+    });
+    findAll('.sortable').forEach(function(elem) {
+        const icon = document.createElement('div');
+        icon.className = 'sort-icon';
+        icon.textContent = 'vvv';
+        elem.insertBefore(icon, elem.firstChild);
+        elem.classList.remove('desc', 'active');
+        elem.classList.add('asc', 'inactive');
+    });
+}
+
+function toggleSortStates(elem) {
+    //if active, toggle between asc and desc
+    if (elem.classList.contains('active')) {
+        elem.classList.toggle('asc');
+        elem.classList.toggle('desc');
+    }
+
+    //if inactive, reset all other functions and add ascending active
+    if (elem.classList.contains('inactive')) {
+        resetSortHeaders();
+        elem.classList.remove('inactive');
+        elem.classList.add('active');
+    }
+}
+
+function isAllRowsHidden(value) {
+    return value.hidden == false;
+}
+
+function filterTable(elem) { // eslint-disable-line no-unused-vars
+    const outcomeAtt = 'data-test-result';
+    const outcome = elem.getAttribute(outcomeAtt);
+    const classOutcome = outcome + ' results-table-row';
+    const outcomeRows = document.getElementsByClassName(classOutcome);
+
+    for(let i = 0; i < outcomeRows.length; i++){
+        outcomeRows[i].hidden = !elem.checked;
+    }
+
+    const rows = findAll('.results-table-row').filter(isAllRowsHidden);
+    const allRowsHidden = rows.length == 0 ? true : false;
+    const notFoundMessage = document.getElementById('not-found-message');
+    notFoundMessage.hidden = !allRowsHidden;
+}
+</script>
+    <h1>report.html</h1>
+    <p>Report generated on 20-May-2022 at 16:54:05 by <a href="https://pypi.python.org/pypi/pytest-html">pytest-html</a> v3.1.1</p>
+    <h2>Environment</h2>
+    <table id="environment">
+      <tr>
+        <td>JAVA_HOME</td>
+        <td>D:\JDK</td></tr>
+      <tr>
+        <td>Packages</td>
+        <td>{"pluggy": "0.13.1", "py": "1.11.0", "pytest": "7.1.2"}</td></tr>
+      <tr>
+        <td>Platform</td>
+        <td>Windows-10-10.0.18363-SP0</td></tr>
+      <tr>
+        <td>Plugins</td>
+        <td>{"allure-pytest": "2.8.6", "html": "3.1.1", "metadata": "2.0.1"}</td></tr>
+      <tr>
+        <td>Python</td>
+        <td>3.10.4</td></tr></table>
+    <h2>Summary</h2>
+    <p>4 tests ran in 0.49 seconds. </p>
+    <p class="filter" hidden="true">(Un)check the boxes to filter the results.</p><input checked="true" class="filter" data-test-result="passed" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="passed">4 passed</span>, <input checked="true" class="filter" data-test-result="skipped" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="skipped">0 skipped</span>, <input checked="true" class="filter" data-test-result="failed" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="failed">0 failed</span>, <input checked="true" class="filter" data-test-result="error" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="error">0 errors</span>, <input checked="true" class="filter" data-test-result="xfailed" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="xfailed">0 expected failures</span>, <input checked="true" class="filter" data-test-result="xpassed" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="xpassed">0 unexpected passes</span>
+    <h2>Results</h2>
+    <table id="results-table">
+      <thead id="results-table-head">
+        <tr>
+          <th class="sortable result initial-sort" col="result">Result</th>
+          <th class="sortable" col="name">Test</th>
+          <th class="sortable" col="duration">Duration</th>
+          <th class="sortable links" col="links">Links</th></tr>
+        <tr hidden="true" id="not-found-message">
+          <th colspan="4">No results found. Try to check the filters</th></tr></thead>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_case/test_customer_profile.py::TestCustomerProfile::test_001_customer</td>
+          <td class="col-duration">0.42</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log setup------------------------------- <br/>INFO     conftest:conftest.py:48 请求的url==https://ironfist.yuntingai.com
+DEBUG    urllib3.connectionpool:connectionpool.py:1001 Starting new HTTPS connection (1): ironfist.yuntingai.com:443
+DEBUG    urllib3.connectionpool:connectionpool.py:456 https://ironfist.yuntingai.com:443 &quot;POST /api/login HTTP/1.1&quot; 200 None
+INFO     conftest:conftest.py:52 获取的返回值是==9220b9ff71a14e299ee4279da382cae8<br/> -------------------------------Captured log call-------------------------------- <br/>DEBUG    urllib3.connectionpool:connectionpool.py:1001 Starting new HTTPS connection (1): ironfist.yuntingai.com:443
+DEBUG    urllib3.connectionpool:connectionpool.py:456 https://ironfist.yuntingai.com:443 &quot;POST /api/ironfist/contact/tag/v2/list HTTP/1.1&quot; 200 None
+INFO     test_case.test_customer_profile:test_customer_profile.py:30 请求结果是:{&#x27;code&#x27;: 20000, &#x27;msg&#x27;: &#x27;操作成功&#x27;, &#x27;result&#x27;: [{&#x27;id&#x27;: &#x27;8c151f4c700541939325ef9fc3bcc27a&#x27;, &#x27;name&#x27;: &#x27;曾昭测试&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;4bdd14674246467094acc5598a6016c6&#x27;, &#x27;name&#x27;: &#x27;dasdas&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;36838f224cf64a6d8a7b8837bf5a8371&#x27;, &#x27;name&#x27;: &#x27;3333&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;5cb494eb52d945eba14a016abc094a39&#x27;, &#x27;name&#x27;: &#x27;j8k&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;0f504cb33990458f8897c311782fdeb8&#x27;, &#x27;name&#x27;: &#x27;天天天&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;b5079d4474e741b483f7ba85013efc1e&#x27;, &#x27;name&#x27;: &#x27;美美美&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;8147ff3003cd4ef1b9d1a15a44c541e6&#x27;, &#x27;name&#x27;: &#x27;杀杀杀&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;de3e483d997a4412880a1d3b36911d22&#x27;, &#x27;name&#x27;: &#x27;隐私测试&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;619a77945ab94b979bbb025331d781a7&#x27;, &#x27;name&#x27;: &#x27;分发标签测试&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;cf55a8a16607491a99112c9f9fb1af92&#x27;, &#x27;name&#x27;: &#x27;模板导入&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;a96de64562b745af9f34796187ab5be8&#x27;, &#x27;name&#x27;: &#x27;模板导入客户&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;83a0d7a2886e48d0b1724135804c8ad4&#x27;, &#x27;name&#x27;: &#x27;新表情导入&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;6cbbaac3ba354c2094aacb738de401e0&#x27;, &#x27;name&#x27;: &#x27;newskr&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;6b066a01c2c745b4928f78adce5b54e9&#x27;, &#x27;name&#x27;: &#x27;测试朱丽莎&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;b68851cfec1847e18b8f96750255f991&#x27;, &#x27;name&#x27;: &#x27;朱丽莎&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;71dd7193d1314212817dec97585d6a92&#x27;, &#x27;name&#x27;: &#x27;价格敏感&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;9c2011648f494469b4c21abb19b79822&#x27;, &#x27;name&#x27;: &#x27;3&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;e1270986b1414698bba695bdf3d08a4b&#x27;, &#x27;name&#x27;: &#x27;2&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;0c6c14203b8240c6a3141f8423e47240&#x27;, &#x27;name&#x27;: &#x27;1&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;947b79ea2e3744d3bf1e719ee048d1de&#x27;, &#x27;name&#x27;: &#x27;已注册3年&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;90466149be4e49eba6abbf5c64e4ff80&#x27;, &#x27;name&#x27;: &#x27;价格不敏感&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;27bb2e426e7a4488bb10bcf548e3fa10&#x27;, &#x27;name&#x27;: &#x27;华南地区客户&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;c368fe27f0734025aa1287438e80d29d&#x27;, &#x27;name&#x27;: &#x27;已复购&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;649dc0f114f64beabcf0254dbfa45422&#x27;, &#x27;name&#x27;: &#x27;低流失风险&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;0e7c05777f8f4bb3b2de68c6bc56cc0d&#x27;, &#x27;name&#x27;: &#x27;测试测试&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;100abc2168324ca4a1728fbce4832fe5&#x27;, &#x27;name&#x27;: &#x27;飒飒&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;9201da869d444329867f9239b88e7920&#x27;, &#x27;name&#x27;: &#x27;A&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;5d9bcad57bbe4aca827c7dd2e1a40368&#x27;, &#x27;name&#x27;: &#x27;B&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;aa1758503d2e4d3ca417dbda680f5817&#x27;, &#x27;name&#x27;: &#x27;2222&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;e27d8085ece345feab8381016115862b&#x27;, &#x27;name&#x27;: &#x27;test1&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;eb3de6929a1f479b91652a753548a5de&#x27;, &#x27;name&#x27;: &#x27;11111111&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;e550e1f7f4b341dcab3eaec18c3bb0e6&#x27;, &#x27;name&#x27;: &#x27;biaoqianle ne &#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;fca4fa01c134489bae1a0e470abefc8c&#x27;, &#x27;name&#x27;: &#x27;发发发发发发&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;8b8d0161c1e049b4a8c006b4e6494d8f&#x27;, &#x27;name&#x27;: &#x27;热热热热热若若若若若&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;f75dfc628b7e47e694e7f0cc0acd87c4&#x27;, &#x27;name&#x27;: &#x27;鹅鹅鹅饿鹅鹅鹅饿嗯嗯嗯&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;f3f4e772bea34c50933ea058121decd0&#x27;, &#x27;name&#x27;: &#x27;这是个唱唱唱标签&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;10308ce870394046bd99e1da8013a9a9&#x27;, &#x27;name&#x27;: &#x27;标签标签标签&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;e4a10093e277437ab0117cc1ddaadbc7&#x27;, &#x27;name&#x27;: &#x27;标签&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;3b1c90dfe8aa4084ae74c566d1d76d7a&#x27;, &#x27;name&#x27;: &#x27;SDGSDGF&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;34bb11a83c6742fb890d202bc811a46d&#x27;, &#x27;name&#x27;: &#x27;测试新增&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;fb441122141c4c98a3e659ea87c57273&#x27;, &#x27;name&#x27;: &#x27;wu&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;2986de680001497f940e8a06c89c47e1&#x27;, &#x27;name&#x27;: &#x27;wowoowowo&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;c04ba5ff18be40b7ba15c5b5764d692b&#x27;, &#x27;name&#x27;: &#x27;好&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;263e3e186d38496298f59cb2f58621e9&#x27;, &#x27;name&#x27;: &#x27;zzz&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;767735e3246244f1b20d5c5fb97e0632&#x27;, &#x27;name&#x27;: &#x27;zhoutest&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;bc93ade6ae73435ebdf2de848e20c6c3&#x27;, &#x27;name&#x27;: &#x27;zwj&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;7426206fb5ca4be9bfaa4c4ff60cde11&#x27;, &#x27;name&#x27;: &#x27;武&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;046c8c2f231b46e48d46226918e314e5&#x27;, &#x27;name&#x27;: &#x27;普通客户&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;1fbea8ac5f574930b8e30a179f7b0781&#x27;, &#x27;name&#x27;: &#x27;30-40岁&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;208140d48f3f44f9a6d28ebc800dac2c&#x27;, &#x27;name&#x27;: &#x27;VIP客户&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;e3a9b794d03c4507bb5852695acfdd82&#x27;, &#x27;name&#x27;: &#x27;20-30岁&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;5b0405e1ca4744b399ead0d55086b601&#x27;, &#x27;name&#x27;: &#x27;测试2&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;4444fc44155649f3be2ee62658089047&#x27;, &#x27;name&#x27;: &#x27;不可用&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;8b844649cdd947e8b8cdc3f104d5d714&#x27;, &#x27;name&#x27;: &#x27;20210602112122&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;8acb52a88a824e409f08ec420c68d4a9&#x27;, &#x27;name&#x27;: &#x27;20210602111936&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;3846bf666e5d45e092489c6c7f5d490c&#x27;, &#x27;name&#x27;: &#x27;20210602111828&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;99d5b2f56cd84e879bb11c748059d230&#x27;, &#x27;name&#x27;: &#x27;20210602111727&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;33c25cd7a97c4ddfb3aeee1db4a962de&#x27;, &#x27;name&#x27;: &#x27;202106021102000&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;eed38fff1bce41918e5dbb998b4851ba&#x27;, &#x27;name&#x27;: &#x27;20210602104018&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;72d5cdcc9f494039b9ecc5f977ee6a5f&#x27;, &#x27;name&#x27;: &#x27;20210531103627&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;a16d532e7e9144f1a4a09aa5f221631e&#x27;, &#x27;name&#x27;: &#x27;adb&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;9e908177853647c6b9768efbe0b05ce4&#x27;, &#x27;name&#x27;: &#x27;web&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;b302db4f61794c13993a12ab48aada03&#x27;, &#x27;name&#x27;: &#x27;同事&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;9a0e90e5f47e49ffa30445dfa30701f4&#x27;, &#x27;name&#x27;: &#x27;新增曾昭&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;568ee307b3364995b4696e70e1dd41b3&#x27;, &#x27;name&#x27;: &#x27;曾光新&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;e1ec7671e5cb44b4b20df6a7cdad0998&#x27;, &#x27;name&#x27;: &#x27;假邮箱&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;ddd73ac5bc4c4e34ae7dbee7a9409657&#x27;, &#x27;name&#x27;: &#x27;导入北屿&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;c5c2134e677a4c2992c75b5f45a2ef6e&#x27;, &#x27;name&#x27;: &#x27;曾昭已发送&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;4aec8259ccfe4d52bd4dc9ed73ea3d49&#x27;, &#x27;name&#x27;: &#x27;打上新标签分发&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;a72503d7a3fe4bda87aa0f759cff9882&#x27;, &#x27;name&#x27;: &#x27;202010280100&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;4055f4b3682744f7a90de3400d2a3a48&#x27;, &#x27;name&#x27;: &#x27;20201028&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;f9321c2a573a4792b87f3f267fb063d7&#x27;, &#x27;name&#x27;: &#x27;云听技术第二次填写&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;cc7ae19f594a4f7f97ab550f758c25bf&#x27;, &#x27;name&#x27;: &#x27;云听技术第一次填写&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;716801bc93734f4ca68497fffb770eda&#x27;, &#x27;name&#x27;: &#x27;云听技术&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;3987439bd0e4445faa6fe77fca0b9dc6&#x27;, &#x27;name&#x27;: &#x27;曾昭测试&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;77eca28df14e4582ad12f52d8eb0c9d0&#x27;, &#x27;name&#x27;: &#x27;test&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;bee7b94f3ce4466883ca3f0ba592ea2c&#x27;, &#x27;name&#x27;: &#x27;文彬&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;15e15eecd44b11e9b3686c0b84d60783&#x27;, &#x27;name&#x27;: &#x27;无效邮箱&#x27;, &#x27;type&#x27;: None}, {&#x27;id&#x27;: &#x27;15e15c98d44b11e9b3686c0b84d60783&#x27;, &#x27;name&#x27;: &#x27;无效手机号&#x27;, &#x27;type&#x27;: None}]}
+INFO     test_case.test_customer_profile:test_customer_profile.py:39 测试customer完成<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_case/test_fix1.py::test_s1</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>用例1：登录之后其它动作111
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_case/test_fix1.py::test_s2</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>用例2：不需要登录，操作222
+<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_case/test_fix1.py::test_s4</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>{&#x27;User-Agent&#x27;: &#x27;Mozilla/5.0 (Windows NT 6.2; WOW64; Trident/7.0; rv:11.0) like Gecko&#x27;, &#x27;Accept&#x27;: &#x27;image/gif, image/jpeg, image/pjpeg, application/x-ms-application, application/xaml+xml, application/x-ms-xbap, application/vnd.ms-excel, application/vnd.ms-powerpoint, application/msword, */*&#x27;, &#x27;Accept-Language&#x27;: &#x27;zh-CN&#x27;, &#x27;Cookie&#x27;: &#x27;Hm_lvt_1b04138eba9c963fa12d5a2d7bc72fb8=1650956876; SESSION=MjU5MDY1ZTAtMjkxNC00Y2UwLThjMDYtY2E3NzE3NjlmN2Q4; JSESSIONID=09001767DB54AAD08FFF686FC3BE3E71&#x27;, &#x27;Authorization&#x27;: &#x27;Bearer 9220b9ff71a14e299ee4279da382cae8&#x27;}
+<br/></div></td></tr></tbody></table></body></html>
