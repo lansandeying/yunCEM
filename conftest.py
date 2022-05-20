@@ -2,9 +2,9 @@
 import pytest
 from config.url_config import URLConfig
 from common.http_request import HTTPRequests
-from common.logger import logger
+import logging
 
-logger = logger()
+logger = logging.getLogger(__name__)
 
 def pytest_addoption(parser):
     parser.addoption(
@@ -65,3 +65,5 @@ def get_token_head(request):
         'Cookie': "Hm_lvt_1b04138eba9c963fa12d5a2d7bc72fb8=1650956876; SESSION=MjU5MDY1ZTAtMjkxNC00Y2UwLThjMDYtY2E3NzE3NjlmN2Q4; JSESSIONID=09001767DB54AAD08FFF686FC3BE3E71",
                   'Authorization': token}
     yield head
+if __name__=="__main__":
+    pass
