@@ -6,6 +6,17 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+#解决ids的中文编码问题
+def pytest_collection_modifyitems(items):
+    """
+    测试用例收集完成时，将收集到的item的name和nodeid的中文显示在控制台上
+    :return:
+    """
+    for item in items:
+        item.name = item.name.encode("utf-8").decode("unicode_escape")
+        print(item.nodeid)
+        item._nodeid = item.nodeid.encode("utf-8").decode("unicode_escape")
+
 def pytest_addoption(parser):
     parser.addoption(
         "--cmdopt",action="store",default="test", choices=['dev', 'test'],help="my env option:dev or test"

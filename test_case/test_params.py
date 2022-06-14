@@ -25,8 +25,16 @@ class TestParams(object):
     """
 
     @allure.story("params(验证数据驱动)")
+    # @pytest.mark.parametrize("test_input,expected",
+    #                          test_datas
+    #                          )
     @pytest.mark.parametrize("test_input,expected",
-                             test_datas
+                             test_datas,
+                             ids=[                #用于描述每个用例的运行场景
+                                 "输入正确账号，密码，登录成功",
+                                 "输入错误账号，密码，登录失败",
+                                 "输入正确账号，密码，登录成功",
+                             ]
                              )
     def test_001_params(self, test_input,expected):
 
