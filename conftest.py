@@ -26,8 +26,8 @@ def http(request):
 
 @pytest.fixture()
 def login(request):
-    get_userName=request.param
-    return get_userName
+    get_userName=request.param #request.param用于获取参数化时的请求数据：当前是用哪个数据，作为参数，发起的请求,
+    return get_userName #这个在被参数化的方法里可以直接引用。目前脚本还没需要调用的地方（这里起名login也不太合适）
 
 
 @pytest.fixture(scope='session')#调用登录，且满足所有被测case，用的是一个token
@@ -62,8 +62,7 @@ def get_token_head(request):
                   'application/x-ms-xbap, application/vnd.ms-excel, application/vnd.ms-powerpoint, '
                   'application/msword, */*',
         'Accept-Language': 'zh-CN',
-        'Cookie': "Hm_lvt_1b04138eba9c963fa12d5a2d7bc72fb8=1650956876; SESSION=MjU5MDY1ZTAtMjkxNC00Y2UwLThjMDYtY2E3NzE3NjlmN2Q4; JSESSIONID=09001767DB54AAD08FFF686FC3BE3E71",
-                  'Authorization': token}
+        'Authorization': token}
     yield head
 if __name__=="__main__":
-    pass
+    get_token_head()

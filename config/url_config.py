@@ -5,11 +5,18 @@ class URLConfig(enum.Enum):
     '''环境配置信息'''
     url_mapping={
         'dev': 'https://phone.yuntingai.com',
-        'test': 'https://ironfist.yuntingai.com'
+        'test': 'http://192.168.21.21:6003/',
+        'beat': 'https://ironfist.yuntingai.com'
     }
 
     '''不同环境的登录信息'''
     user={
+        'dev': 'liudongqin2@skieer.com/Aa123456',
+        'test': 'liudongqin1@skieer.com/Aa123456'
+    }
+
+    '''不同环境的项目信息'''
+    project = {
         'dev': 'liudongqin2@skieer.com/Aa123456',
         'test': 'liudongqin1@skieer.com/Aa123456'
     }
